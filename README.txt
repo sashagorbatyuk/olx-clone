@@ -1,165 +1,65 @@
-# OLX Clone (ASP.NET Core + React)
+# OLX Clone — Run locally from zero (Windows)
 
-A simple OLX-like marketplace clone.
+This repo contains:
+- **backend**: ASP.NET Core Web API + EF Core + PostgreSQL + JWT + Google Sign-In + SMTP reset
+- **frontend**: React + TypeScript + Vite
 
-## Stack
-
-**Backend**
-- ASP.NET Core Web API
-- EF Core
-- PostgreSQL (Docker)
-- JWT Auth
-- Static files for images (`/uploads`, `/avatars`)
-- Google Sign-In (ID token -> backend -> JWT)
-- Password reset via SMTP (with dev mode that returns reset link)
-
-**Frontend**
-- React + TypeScript + Vite
-- React Router
-- Axios
-
-## Features
-
-- Auth: register/login + Google Sign-In
-- Ads: CRUD + photos
-- Categories
-- Profile: avatar + about + phone/name
-- Chats: buyer/seller conversations + messages
-- Orders: basic purchase flow + shipping (meetup/post/courier)
-- Password reset (forgot/reset)
+Follow the steps exactly.
 
 ---
 
-## Requirements
-
-- **Node.js** 18+ (recommended)
-- **.NET SDK** 8.0+
-- **Docker Desktop** (for PostgreSQL)
-
----
-
-## Project structure
-
-# OLX Clone (ASP.NET Core + React)
-
-A simple OLX-like marketplace clone.
-
-## Stack
-
-**Backend**
-- ASP.NET Core Web API
-- EF Core
-- PostgreSQL (Docker)
-- JWT Auth
-- Static files for images (`/uploads`, `/avatars`)
-- Google Sign-In (ID token -> backend -> JWT)
-- Password reset via SMTP (with dev mode that returns reset link)
-
-**Frontend**
-- React + TypeScript + Vite
-- React Router
-- Axios
-
-## Features
-
-- Auth: register/login + Google Sign-In
-- Ads: CRUD + photos
-- Categories
-- Profile: avatar + about + phone/name
-- Chats: buyer/seller conversations + messages
-- Orders: basic purchase flow + shipping (meetup/post/courier)
-- Password reset (forgot/reset)
+## 0) Requirements
+Install:
+- **.NET SDK 8+**
+- **Node.js 18+**
+- **Docker Desktop**
+- **Git**
 
 ---
 
-## Requirements
-
-- **Node.js** 18+ (recommended)
-- **.NET SDK** 8.0+
-- **Docker Desktop** (for PostgreSQL)
-
----
-
-## Project structure
-backend/
-src/
-OlxClone.Api/
-OlxClone.Domain/
-OlxClone.Infrastructure/
-OlxClone.Application/
-frontend/
-
----
-
-## 1) Start PostgreSQL (Docker)
-
-From project root:
-
+## 1) Clone repo
 ```bash
+git clone https://github.com/sashagorbatyuk/olx-clone
+cd <REPO_FOLDER>
+
+DOCKER: 
+docker compose up -d
 docker compose up -d
 
+Configure appsettings.Development.json
+Потрібно підставити свою інфу з гугл клауду
 
-
-cp backend/src/OlxClone.Api/appsettings.Development.example.json backend/src/OlxClone.Api/appsettings.Development.json
-
-Then edit backend/src/OlxClone.Api/appsettings.Development.json and set:
-
-Jwt:Key (any long dev secret)
-
-GoogleAuth:ClientId (if using Google Sign-In)
-
-Smtp settings (if using email reset)
-
-App:FrontendBaseUrl = http://localhost:5173
-
-For development, you can keep:
-App:ReturnDevResetLink = true
-Then /auth/forgot-password returns devResetLink in response.
-
-
-
+Зробити міграції
 cd backend
-dotnet ef database update \
-  --project ./src/OlxClone.Infrastructure/OlxClone.Infrastructure.csproj \
-  --startup-project ./src/OlxClone.Api/OlxClone.Api.csproj
+dotnet ef database update --project .\src\OlxClone.Infrastructure\OlxClone.Infrastructure.csproj
+dotnet ef --startup-project .\src\OlxClone.Api\OlxClone.Api.csproj
 
+Якщо дотнету нема - в корні olx clone - dotnet tool install --global dotnet-ef
 
-Frontend setup & run
-3.1 Create env file
+Запустити бекенд - dotnet run --project .\src\OlxClone.Api\OlxClone.Api.csproj
 
-Copy example:
+API: http://localhost:5015
+Swagger: http://localhost:5015/swagger
 
-cp frontend/.env.example frontend/.env
-
-Edit frontend/.env if needed:
+Для енву також потрібно вставити свій гугл кліент айді
 
 VITE_API_BASE_URL=http://localhost:5015
+VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID
 
-VITE_GOOGLE_CLIENT_ID=... (optional)
+Для фронтенду просто запустіть ці програми з корню проекту 
 
-3.2 Install dependencies & run
 cd frontend
 npm install
 npm run dev
 
-Frontend:
-http://localhost:5173
+все запуститься на http://localhost:5173
 
+ПЕРЕЗАПУСКИ
 
+Фронт - ctrl + c, y, та npm run dev
+Бек - docker ps + docker compose up -d
+Перестворює дб з початку(всі дані стираються) - docker compose down -v + docker compose up -d, після цього знову міграції
 
----
+Frontend: http://localhost:5173
 
-## 5) Після цього: перевір, що секрети не потрапили в GitHub
-
-Перед пушем (або після) глянь:
-- чи нема `appsettings.Development.json` у репо
-- чи нема `frontend/.env`
-- чи нема реальних фото у `wwwroot/uploads`
-
----
-
-## Якщо хочеш — я піджену README під твої реальні порти/імена
-Скажи:
-- який порт у бекенда (ти зараз використовуєш 5015 — ок)
-- чи є `docker-compose.yml` в корені чи в `backend/`
-і я зроблю README 1:1 під твою структуру без “можливо”.
+Swagger: http://localhost:5015/swagger
