@@ -1,0 +1,15 @@
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\bin\Debug\net8.0\OlxClone.Application.deps.json
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\bin\Debug\net8.0\OlxClone.Application.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\bin\Debug\net8.0\OlxClone.Application.pdb
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\bin\Debug\net8.0\OlxClone.Domain.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\bin\Debug\net8.0\OlxClone.Domain.pdb
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.csproj.AssemblyReference.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.AssemblyInfoInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.AssemblyInfo.cs
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.csproj.CoreCompileInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.4822FA71.Up2Date
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\refint\OlxClone.Application.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.pdb
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\ref\OlxClone.Application.dll

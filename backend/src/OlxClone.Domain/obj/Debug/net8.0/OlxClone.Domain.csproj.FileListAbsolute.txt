@@ -1,0 +1,11 @@
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\bin\Debug\net8.0\OlxClone.Domain.deps.json
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\bin\Debug\net8.0\OlxClone.Domain.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\bin\Debug\net8.0\OlxClone.Domain.pdb
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.AssemblyInfoInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.AssemblyInfo.cs
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.csproj.CoreCompileInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\refint\OlxClone.Domain.dll
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\OlxClone.Domain.pdb
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Domain\obj\Debug\net8.0\ref\OlxClone.Domain.dll

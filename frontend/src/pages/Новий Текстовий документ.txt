@@ -1,0 +1,3 @@
+ferI EXIIIIIIIIIST HAHAHAHAHHAAH
+
+dotnet run --project .\src\OlxClone.Api\OlxClone.Api.csproj

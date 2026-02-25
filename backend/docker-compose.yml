@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: olx_postgres
+    environment:
+      POSTGRES_USER: olx
+      POSTGRES_PASSWORD: olxpass
+      POSTGRES_DB: olxdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - olx_pgdata:/var/lib/postgresql/data
+
+volumes:
+  olx_pgdata:
