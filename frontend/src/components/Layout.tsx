@@ -22,6 +22,7 @@ export function Layout() {
 {authed && <Link to="/chats">Chats</Link>}
 {authed && <Link to="/profile">Profile</Link>}
 {authed && <Link to="/orders">Orders</Link>}
+{authed && <Link to="/followed">Followed</Link>}
         </nav>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>

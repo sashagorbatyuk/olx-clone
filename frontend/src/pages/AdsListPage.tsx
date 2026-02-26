@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getAds, getCategories } from "../features/ads/api";
-import type { AdsListItem, Category } from "../features/ads/types";
-import { apiUrl } from "../api/url";
+import { getAds } from "../features/ads/api";
+import type { AdsListItem } from "../features/ads/types";
+import { getCategories, type Category } from "../api/categories";
+import { apiUrl } from "../api/urls";
+import "./AdsListPage.css";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -49,6 +51,23 @@ export function AdsListPage() {
     if (categoryId) p.categoryId = categoryId;
     return p;
   }, [search, city, categoryId, sort, page]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await getAds(params);
+        setItems(data.items || []);
+        setTotal(data.count || 0);
+      } catch (e) {
+        console.error("Failed to load ads", e);
+        setItems([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [params]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -109,7 +128,8 @@ export function AdsListPage() {
           <select
             value={categoryId}
             onChange={(e) => applyFilters({ categoryId: e.target.value })}
-            style={{ width: "100%", padding: 8 }}
+            className="filter-select"
+            aria-label="Category"
           >
             <option value="">All</option>
             {cats.map((c) => (
@@ -125,7 +145,8 @@ export function AdsListPage() {
           <select
             value={sort}
             onChange={(e) => applyFilters({ sort: e.target.value })}
-            style={{ width: "100%", padding: 8 }}
+            className="filter-select"
+            aria-label="Sort"
           >
             <option value="createdAt_desc">Newest</option>
             <option value="price_asc">Price ↑</option>

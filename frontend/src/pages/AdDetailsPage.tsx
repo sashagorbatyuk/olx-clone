@@ -2,9 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { getAdById } from "../features/ads/api";
 import { createOrGetChatByAd } from "../api/chats";
-import { isAuthed } from "../api/auth";
-import { getMyUserIdFromToken} from "../api/auth";
+import { isAuthed, getMyUserIdFromToken } from "../api/auth";
 import { createOrderByAd } from "../api/orders";
+import {
+  getSubscriptionStatus,
+  subscribeAd,
+  unsubscribeAd,
+} from "../api/subscriptions";
 
 type Photo = { id: string; url: string; sortOrder: number };
 
@@ -22,6 +26,14 @@ type AdDetails = {
   photos: Photo[];
 };
 
+function fmtDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
 export function AdDetailsPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -35,6 +47,11 @@ export function AdDetailsPage() {
   // main photo url (relative like "/uploads/..")
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
 
+  // subscription
+  const authed = isAuthed();
+  const [subscribed, setSubscribed] = useState<boolean>(false);
+  const [subBusy, setSubBusy] = useState(false);
+
   // lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -44,14 +61,14 @@ export function AdDetailsPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
   const wheelRef = useRef<HTMLDivElement | null>(null);
-
-  const authed = isAuthed();
 
   const myId = getMyUserIdFromToken();
   const isMine = !!myId && !!ad && ad.userId === myId;
 
+  const sortedPhotos = (ad?.photos ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // -------------------- load ad + subscription --------------------
   useEffect(() => {
     if (!id) {
       setErr("No ad id in route. Check router: it must be /ads/:id");
@@ -65,18 +82,22 @@ export function AdDetailsPage() {
     setActiveUrl(null);
     setLightboxOpen(false);
     setLightboxIndex(0);
+    setSubscribed(false);
 
-    getAdById(id)
-      .then((data: any) => {
+    (async () => {
+      try {
+        const data: any = await getAdById(id);
+
         const photos: Photo[] = Array.isArray(data?.photos)
           ? data.photos.map((p: any) =>
               typeof p === "string"
                 ? { id: p, url: p, sortOrder: 0 }
-                : { id: p.id, url: p.url, sortOrder: Number(p.sortOrder ?? 0) }
+                : { id: String(p.id), url: String(p.url), sortOrder: Number(p.sortOrder ?? 0) }
             )
           : [];
 
         const normalized: AdDetails = {
+          userId: data.userId,
           id: data.id,
           categoryId: data.categoryId,
           title: data.title ?? "",
@@ -95,12 +116,24 @@ export function AdDetailsPage() {
         setAd(normalized);
         setActiveUrl(first);
         setLightboxIndex(0);
-      })
-      .catch((e: any) => setErr(e?.response?.data ?? e?.message ?? "Failed to load ad"))
-      .finally(() => setLoading(false));
-  }, [id]);
 
-  const sortedPhotos = (ad?.photos ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+        // subscription status (only when authed and not my ad)
+        if (authed && normalized.userId && myId && normalized.userId !== myId) {
+          try {
+            const st = await getSubscriptionStatus(normalized.id);
+            setSubscribed(!!st?.subscribed);
+          } catch {
+            // ignore; keep false
+          }
+        }
+      } catch (e: any) {
+        setErr(e?.response?.data ?? e?.message ?? "Failed to load ad");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // sync lightbox index with activeUrl
   useEffect(() => {
@@ -127,8 +160,9 @@ export function AdDetailsPage() {
   }
 
   function openLightboxAt(index: number) {
+    const url = sortedPhotos[index]?.url ?? null;
     setLightboxIndex(index);
-    setActiveUrl(sortedPhotos[index]?.url ?? null);
+    setActiveUrl(url);
     resetView();
     setLightboxOpen(true);
   }
@@ -136,17 +170,13 @@ export function AdDetailsPage() {
   function prevPhoto() {
     if (sortedPhotos.length === 0) return;
     const next = (lightboxIndex - 1 + sortedPhotos.length) % sortedPhotos.length;
-    setLightboxIndex(next);
-    setActiveUrl(sortedPhotos[next].url);
-    resetView();
+    openLightboxAt(next);
   }
 
   function nextPhoto() {
     if (sortedPhotos.length === 0) return;
     const next = (lightboxIndex + 1) % sortedPhotos.length;
-    setLightboxIndex(next);
-    setActiveUrl(sortedPhotos[next].url);
-    resetView();
+    openLightboxAt(next);
   }
 
   // keyboard for lightbox
@@ -185,21 +215,52 @@ export function AdDetailsPage() {
     return () => el.removeEventListener("wheel", onWheel as any);
   }, [lightboxOpen]);
 
+  async function onToggleSubscribe() {
+    if (!ad) return;
+    if (!authed) {
+      nav("/login");
+      return;
+    }
+    if (isMine) return;
+
+    setSubBusy(true);
+    try {
+      if (subscribed) {
+        await unsubscribeAd(ad.id);
+        setSubscribed(false);
+      } else {
+        await subscribeAd(ad.id);
+        setSubscribed(true);
+      }
+    } catch (e: any) {
+      alert(String(e?.response?.data ?? e?.message ?? "Subscription failed"));
+    } finally {
+      setSubBusy(false);
+    }
+  }
+
+  // -------------------- render --------------------
   if (loading) return <div>Loading...</div>;
 
   if (err)
     return (
-      <div style={{ maxWidth: 820 }}>
-        <div style={{ background: "#fee", padding: 10, borderRadius: 8, marginBottom: 10 }}>{String(err)}</div>
-        <button onClick={() => nav(-1)}>Back</button>
+      <div style={{ maxWidth: 920 }}>
+        <div style={{ background: "#fee", padding: 12, borderRadius: 12, border: "1px solid #f3c9c9", marginBottom: 10 }}>
+          {String(err)}
+        </div>
+        <button onClick={() => nav(-1)} style={{ padding: "10px 12px", borderRadius: 12 }}>
+          Back
+        </button>
       </div>
     );
 
   if (!ad)
     return (
-      <div style={{ maxWidth: 820 }}>
+      <div style={{ maxWidth: 920 }}>
         <div style={{ color: "#666" }}>Ad not found.</div>
-        <button onClick={() => nav(-1)}>Back</button>
+        <button onClick={() => nav(-1)} style={{ marginTop: 10, padding: "10px 12px", borderRadius: 12 }}>
+          Back
+        </button>
       </div>
     );
 
@@ -211,79 +272,193 @@ export function AdDetailsPage() {
   const rest = Math.max(0, sortedPhotos.length - thumbs.length);
 
   return (
-    <div style={{ maxWidth: 820 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h1 style={{ margin: 0 }}>{ad.title}</h1>
-        <Link to={`/ads/${ad.id}/edit`}>Edit</Link>
-      </div>
-      
+    <div style={{ maxWidth: 920, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ margin: 0, lineHeight: 1.15 }}>{ad.title}</h1>
+          <div style={{ marginTop: 8, fontSize: 20 }}>
+            <b>{ad.price}</b> {ad.currency} • {ad.city}
+          </div>
+          <div style={{ marginTop: 6, color: "#666" }}>{fmtDateTime(ad.createdAt)}</div>
+        </div>
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {authed && isMine && (
+            <Link to={`/ads/${ad.id}/edit`} style={{ textDecoration: "none" }}>
+              <button
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid #e6e6e6",
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 900,
+                }}
+              >
+                Edit
+              </button>
+            </Link>
+          )}
+
+          <button
+            onClick={() => nav(-1)}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid #e6e6e6",
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 900,
+            }}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+
+      {/* Actions */}
       <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-  {/* ✅ Buy */}
-  {authed && !isMine && (
-    <button
-      onClick={async () => {
-        try {
-          const r = await createOrderByAd(ad.id);
-          nav(`/orders/${r.id}`);
-        } catch (e: any) {
-          alert(String(e?.response?.data ?? e?.message ?? "Buy failed"));
-        }
-      }}
-      style={{ padding: "8px 12px" }}
-    >
-      Buy
-    </button>
-  )}
+        {/* Buyer actions */}
+        {authed && !isMine && (
+          <>
+            <button
+              onClick={async () => {
+                try {
+                  const r = await createOrderByAd(ad.id);
+                  nav(`/orders/${r.id}`);
+                } catch (e: any) {
+                  alert(String(e?.response?.data ?? e?.message ?? "Buy failed"));
+                }
+              }}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #1e60ff",
+                background: "#1e60ff",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              Buy
+            </button>
 
-  {/* ✅ Write (чат) */}
-  {authed && !isMine && (
-    <button
-      onClick={async () => {
-        try {
-          const r = await createOrGetChatByAd(ad.id);
-          nav(`/chats/${r.id}`);
-        } catch (e: any) {
-          alert(String(e?.response?.data ?? e?.message ?? "Chat failed"));
-        }
-      }}
-      style={{ padding: "8px 12px" }}
-    >
-      Write
-    </button>
-  )}
-  {isAuthed() && !isMine && (
-  <button onClick={() => nav(`/checkout/${ad.id}`)} style={{ padding: "8px 12px" }}>
-    Buy
-  </button>
-)}
-  {/* якщо твоє оголошення — просто відкриваємо чати/ордера */}
-  {authed && isMine && (
-    <>
-      <button onClick={() => nav("/chats")} style={{ padding: "8px 12px" }}>
-        Open chats
-      </button>
-      <button onClick={() => nav("/orders")} style={{ padding: "8px 12px" }}>
-        Orders
-      </button>
-    </>
-  )}
-</div>
+            <button
+              onClick={async () => {
+                try {
+                  const r = await createOrGetChatByAd(ad.id);
+                  nav(`/chats/${r.id}`);
+                } catch (e: any) {
+                  alert(String(e?.response?.data ?? e?.message ?? "Chat failed"));
+                }
+              }}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #e6e6e6",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              Write
+            </button>
 
-      <div style={{ marginTop: 10, fontSize: 20 }}>
-        <b>{ad.price}</b> {ad.currency} • {ad.city}
+            <button
+              onClick={onToggleSubscribe}
+              disabled={subBusy}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: subscribed ? "1px solid #f3c9c9" : "1px solid #e6e6e6",
+                background: subscribed ? "#ffecec" : "#fff",
+                color: subscribed ? "#b00020" : "#222",
+                cursor: subBusy ? "not-allowed" : "pointer",
+                fontWeight: 900,
+                opacity: subBusy ? 0.7 : 1,
+              }}
+              title={subscribed ? "Unfollow this ad" : "Follow this ad"}
+            >
+              {subscribed ? "Unfollow" : "Follow"}
+            </button>
+
+            <button
+              onClick={() => nav("/followed")}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #e6e6e6",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+              title="Open watchlist"
+            >
+              Watchlist
+            </button>
+          </>
+        )}
+
+        {/* Owner shortcuts */}
+        {authed && isMine && (
+          <>
+            <button
+              onClick={() => nav("/chats")}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #e6e6e6",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              Open chats
+            </button>
+            <button
+              onClick={() => nav("/orders")}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #e6e6e6",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              Orders
+            </button>
+          </>
+        )}
+
+        {/* Not authed */}
+        {!authed && (
+          <>
+            <button
+              onClick={() => nav("/login")}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #e6e6e6",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              Login to buy / chat / follow
+            </button>
+          </>
+        )}
       </div>
 
-      <div style={{ marginTop: 6, color: "#666" }}>{new Date(ad.createdAt).toLocaleString()}</div>
-
-      {/* Main photo (click -> lightbox) */}
+      {/* Main photo */}
       <div style={{ marginTop: 14 }}>
         <button
           onClick={() => (sortedPhotos.length ? openLightboxAt(lightboxIndex) : undefined)}
           disabled={!mainPhoto}
           style={{
             width: "100%",
-            maxWidth: 820,
             aspectRatio: "16 / 9",
             borderRadius: 14,
             overflow: "hidden",
@@ -295,14 +470,18 @@ export function AdDetailsPage() {
           title="Open full size"
         >
           {mainPhoto ? (
-            <img src={mainPhoto} alt="main" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            <img
+              src={mainPhoto}
+              alt="main"
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
           ) : (
             <div style={{ color: "#666", padding: 12 }}>No photo</div>
           )}
         </button>
       </div>
 
-      {/* Thumbs (compact) */}
+      {/* Thumbs */}
       {sortedPhotos.length > 1 && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
           {thumbs.map((p, idx) => {
@@ -312,10 +491,7 @@ export function AdDetailsPage() {
             return (
               <button
                 key={p.id}
-                onClick={() => {
-                  setActiveUrl(p.url);
-                  openLightboxAt(idx);
-                }}
+                onClick={() => openLightboxAt(idx)}
                 style={{
                   width: 140,
                   aspectRatio: "4 / 3",
@@ -328,7 +504,11 @@ export function AdDetailsPage() {
                 }}
                 title="Open full size"
               >
-                <img src={url} alt="thumb" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <img
+                  src={url}
+                  alt="thumb"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
               </button>
             );
           })}
@@ -350,6 +530,7 @@ export function AdDetailsPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 18,
+                fontWeight: 900,
               }}
               title="Open gallery"
             >
@@ -359,12 +540,9 @@ export function AdDetailsPage() {
         </div>
       )}
 
+      {/* Description */}
       <h3 style={{ marginTop: 18 }}>Description</h3>
       <div style={{ whiteSpace: "pre-wrap" }}>{ad.description}</div>
-
-      <div style={{ marginTop: 18 }}>
-        <button onClick={() => nav(-1)}>Back</button>
-      </div>
 
       {/* LIGHTBOX */}
       {lightboxOpen && sortedPhotos.length > 0 && (

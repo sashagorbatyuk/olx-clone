@@ -16,6 +16,7 @@ export type OrderListItem = {
 export type OrderDetails = OrderListItem & {
   buyerName: string;
   sellerName: string;
+  statusName?: string; // ✅ ADD
 };
 
 export type Shipping = {
@@ -84,4 +85,31 @@ export async function cancelOrder(id: string) {
 
 export async function completeOrder(id: string) {
   await http.post(`/orders/${id}/complete`);
+}
+
+export type MyOrderReview =
+  | {
+      id: string;
+      rating: number;
+      comment: string;
+      createdAt: string;
+      rateeId: string;
+    }
+  | null;
+
+export async function getMyReview(orderId: string): Promise<MyOrderReview> {
+  const { data } = await http.get<any>(`/orders/${orderId}/review`);
+
+  // ✅ найважливіше: бек інколи віддає порожнє тіло => axios data === ""
+  if (data === "" || data == null) return null;
+
+  // якщо раптом прийшло щось не-об’єкт
+  if (typeof data !== "object") return null;
+
+  return data as MyOrderReview;
+}
+
+export async function createReview(orderId: string, payload: { rating: number; comment: string }) {
+  const { data } = await http.post(`/orders/${orderId}/review`, payload);
+  return data;
 }

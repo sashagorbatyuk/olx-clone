@@ -78,12 +78,8 @@ public class OrdersController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            // на випадок гонки — partial index відловить
             return Conflict("This ad is already in purchase process.");
         }
-
-        // можна одразу поставити Reserved/Sold у Ad.Status (опційно)
-        // ad.Status = AdStatus.Reserved; await _db.SaveChangesAsync();
 
         return Ok(new { id = order.Id });
     }
@@ -106,7 +102,10 @@ public class OrdersController : ControllerBase
                 adTitle = o.Ad.Title,
                 buyerId = o.BuyerId,
                 sellerId = o.SellerId,
-                status = (int)o.Status,
+
+                status = (int)o.Status,              // ✅ важливо: кома
+                statusName = o.Status.ToString(),    // ✅ щоб фронт не залежав від цифр enum
+
                 price = o.Price,
                 currency = o.Currency,
                 createdAt = o.CreatedAt,
@@ -136,7 +135,10 @@ public class OrdersController : ControllerBase
                 buyerName = x.Buyer.Name,
                 sellerId = x.SellerId,
                 sellerName = x.Seller.Name,
-                status = (int)x.Status,
+
+                status = (int)x.Status,              // ✅ важливо: кома
+                statusName = x.Status.ToString(),    // ✅
+
                 price = x.Price,
                 currency = x.Currency,
                 createdAt = x.CreatedAt,
@@ -144,33 +146,32 @@ public class OrdersController : ControllerBase
             })
             .FirstOrDefaultAsync();
 
-        if (o is null) return NotFound();
+        if (o is null) return NotFound("Order not found.");
         if (o.buyerId != me && o.sellerId != me) return Forbid();
 
         return Ok(o);
     }
 
     // POST /orders/{id}/accept (seller)
-[Authorize]
-[HttpPost("{id:guid}/accept")]
-public async Task<IActionResult> Accept(Guid id)
-{
-    var me = CurrentUserId();
+    [Authorize]
+    [HttpPost("{id:guid}/accept")]
+    public async Task<IActionResult> Accept(Guid id)
+    {
+        var me = CurrentUserId();
 
-    var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
-    if (o is null) return NotFound("Order not found.");
-    if (o.SellerId != me) return Forbid();
+        var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
+        if (o is null) return NotFound("Order not found.");
+        if (o.SellerId != me) return Forbid();
 
-    // ✅ Accept можна тільки для Created
-    if (o.Status != OrderStatus.Created)
-        return BadRequest("Only Created order can be accepted.");
+        if (o.Status != OrderStatus.Created)
+            return BadRequest("Only Created order can be accepted.");
 
-    o.Status = OrderStatus.Accepted;
-    o.UpdatedAt = DateTime.UtcNow;
+        o.Status = OrderStatus.Accepted;
+        o.UpdatedAt = DateTime.UtcNow;
 
-    await _db.SaveChangesAsync();
-    return NoContent();
-}
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 
     // POST /orders/{id}/reject (seller)
     [Authorize]
@@ -180,7 +181,7 @@ public async Task<IActionResult> Accept(Guid id)
         var me = CurrentUserId();
 
         var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
-        if (o is null) return NotFound();
+        if (o is null) return NotFound("Order not found.");
         if (o.SellerId != me) return Forbid();
 
         if (o.Status != OrderStatus.Created)
@@ -201,7 +202,7 @@ public async Task<IActionResult> Accept(Guid id)
         var me = CurrentUserId();
 
         var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
-        if (o is null) return NotFound();
+        if (o is null) return NotFound("Order not found.");
         if (o.BuyerId != me) return Forbid();
 
         if (o.Status != OrderStatus.Created && o.Status != OrderStatus.Accepted)
@@ -215,184 +216,258 @@ public async Task<IActionResult> Accept(Guid id)
     }
 
     // POST /orders/{id}/complete (seller)
-[Authorize]
-[HttpPost("{id:guid}/complete")]
-public async Task<IActionResult> Complete(Guid id)
-{
-    var me = CurrentUserId();
-
-    var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
-    if (o is null) return NotFound("Order not found.");
-    if (o.SellerId != me) return Forbid();
-
-    // ✅ Complete тільки для Accepted
-    if (o.Status != OrderStatus.Accepted)
-        return BadRequest("Only Accepted order can be completed.");
-
-    // ✅ якщо в тебе є доставка — завершуємо тільки після Delivered
-    var ship = await _db.OrderShippings.AsNoTracking().FirstOrDefaultAsync(x => x.OrderId == id);
-    if (ship != null && ship.Status != ShippingStatus.Delivered)
-        return BadRequest("Order can be completed only after Delivered.");
-
-    o.Status = OrderStatus.Completed;
-    o.UpdatedAt = DateTime.UtcNow;
-
-    // опційно: закрити оголошення
-    var ad = await _db.Ads.FirstOrDefaultAsync(a => a.Id == o.AdId);
-    if (ad != null) ad.Status = AdStatus.Archived; // або Sold якщо додаси
-    await _db.SaveChangesAsync();
-
-    return NoContent();
-}
     [Authorize]
-[HttpGet("{id:guid}/shipping")]
-public async Task<IActionResult> GetShipping(Guid id)
-{
-    var me = CurrentUserId();
-
-    var order = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
-    if (order is null) return NotFound();
-    if (order.BuyerId != me && order.SellerId != me) return Forbid();
-
-    var s = await _db.OrderShippings.AsNoTracking()
-        .Where(x => x.OrderId == id)
-        .Select(x => new
-        {
-            id = x.Id,
-            orderId = x.OrderId,
-            method = (int)x.Method,
-            status = (int)x.Status,
-            recipientName = x.RecipientName,
-            recipientPhone = x.RecipientPhone,
-            city = x.City,
-            addressLine = x.AddressLine,
-            carrier = x.Carrier,
-            trackingNumber = x.TrackingNumber,
-            createdAt = x.CreatedAt,
-            updatedAt = x.UpdatedAt
-        })
-        .FirstOrDefaultAsync();
-
-    // якщо ще не створено — повернемо “порожній”
-    if (s == null)
+    [HttpPost("{id:guid}/complete")]
+    public async Task<IActionResult> Complete(Guid id)
     {
-        return Ok(new
-        {
-            id = (Guid?)null,
-            orderId = id,
-            method = 0,
-            status = 0,
-            recipientName = "",
-            recipientPhone = "",
-            city = "",
-            addressLine = "",
-            carrier = (string?)null,
-            trackingNumber = (string?)null
-        });
+        var me = CurrentUserId();
+
+        var o = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id);
+        if (o is null) return NotFound("Order not found.");
+        if (o.SellerId != me) return Forbid();
+
+        if (o.Status != OrderStatus.Accepted)
+            return BadRequest("Only Accepted order can be completed.");
+
+        // якщо є доставка — завершити можна тільки після Delivered
+        var ship = await _db.OrderShippings.AsNoTracking().FirstOrDefaultAsync(x => x.OrderId == id);
+        if (ship != null && ship.Status != ShippingStatus.Delivered)
+            return BadRequest("Order can be completed only after Delivered.");
+
+        o.Status = OrderStatus.Completed;
+        o.UpdatedAt = DateTime.UtcNow;
+
+        // опційно: закрити оголошення
+        var ad = await _db.Ads.FirstOrDefaultAsync(a => a.Id == o.AdId);
+        if (ad != null) ad.Status = AdStatus.Archived;
+
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
-    return Ok(s);
-}
+    // ----------------------------
+    // Shipping
+    // ----------------------------
 
-[Authorize]
-[HttpPost("{id:guid}/shipping")]
-public async Task<IActionResult> UpsertShipping(Guid id, [FromBody] UpsertShippingRequest r)
-{
-    var me = CurrentUserId();
-
-    var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
-    if (order is null) return NotFound();
-    if (order.BuyerId != me) return Forbid();
-
-    // Доставку має сенс заповнювати коли seller прийняв (або хоча б Created)
-    if (order.Status != OrderStatus.Accepted && order.Status != OrderStatus.Created)
-        return BadRequest("Order must be Created or Accepted.");
-
-    var method = (DeliveryMethod)r.Method;
-
-    if (string.IsNullOrWhiteSpace(r.RecipientName)) return BadRequest("RecipientName is required.");
-    if (string.IsNullOrWhiteSpace(r.RecipientPhone)) return BadRequest("RecipientPhone is required.");
-    if (string.IsNullOrWhiteSpace(r.City)) return BadRequest("City is required.");
-
-    // Meetup: AddressLine можна як “Meet at метро ...”, але не обов’язково
-    if ((method == DeliveryMethod.Post || method == DeliveryMethod.Courier) && string.IsNullOrWhiteSpace(r.AddressLine))
-        return BadRequest("AddressLine is required for Post/Courier.");
-
-    var now = DateTime.UtcNow;
-
-    var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
-    if (s == null)
+    [Authorize]
+    [HttpGet("{id:guid}/shipping")]
+    public async Task<IActionResult> GetShipping(Guid id)
     {
-        s = new OrderShipping
+        var me = CurrentUserId();
+
+        var order = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null) return NotFound("Order not found.");
+        if (order.BuyerId != me && order.SellerId != me) return Forbid();
+
+        var s = await _db.OrderShippings.AsNoTracking()
+            .Where(x => x.OrderId == id)
+            .Select(x => new
+            {
+                id = x.Id,
+                orderId = x.OrderId,
+                method = (int)x.Method,
+                status = (int)x.Status,
+                recipientName = x.RecipientName,
+                recipientPhone = x.RecipientPhone,
+                city = x.City,
+                addressLine = x.AddressLine,
+                carrier = x.Carrier,
+                trackingNumber = x.TrackingNumber
+            })
+            .FirstOrDefaultAsync();
+
+        if (s == null)
+        {
+            return Ok(new
+            {
+                id = (Guid?)null,
+                orderId = id,
+                method = 0,
+                status = 0,
+                recipientName = "",
+                recipientPhone = "",
+                city = "",
+                addressLine = "",
+                carrier = (string?)null,
+                trackingNumber = (string?)null
+            });
+        }
+
+        return Ok(s);
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/shipping")]
+    public async Task<IActionResult> UpsertShipping(Guid id, [FromBody] UpsertShippingRequest r)
+    {
+        var me = CurrentUserId();
+
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null) return NotFound("Order not found.");
+        if (order.BuyerId != me) return Forbid();
+
+        if (order.Status != OrderStatus.Accepted && order.Status != OrderStatus.Created)
+            return BadRequest("Order must be Created or Accepted.");
+
+        var method = (DeliveryMethod)r.Method;
+
+        if (string.IsNullOrWhiteSpace(r.RecipientName)) return BadRequest("RecipientName is required.");
+        if (string.IsNullOrWhiteSpace(r.RecipientPhone)) return BadRequest("RecipientPhone is required.");
+        if (string.IsNullOrWhiteSpace(r.City)) return BadRequest("City is required.");
+
+        if ((method == DeliveryMethod.Post || method == DeliveryMethod.Courier) && string.IsNullOrWhiteSpace(r.AddressLine))
+            return BadRequest("AddressLine is required for Post/Courier.");
+
+        var now = DateTime.UtcNow;
+
+        var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
+        if (s == null)
+        {
+            s = new OrderShipping
+            {
+                Id = Guid.NewGuid(),
+                OrderId = id,
+                CreatedAt = now
+            };
+            _db.OrderShippings.Add(s);
+        }
+
+        s.Method = method;
+        s.RecipientName = r.RecipientName.Trim();
+        s.RecipientPhone = r.RecipientPhone.Trim();
+        s.City = r.City.Trim();
+        s.AddressLine = (r.AddressLine ?? "").Trim();
+        s.Carrier = string.IsNullOrWhiteSpace(r.Carrier) ? null : r.Carrier.Trim();
+        s.Status = ShippingStatus.Ready;
+        s.UpdatedAt = now;
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/shipping/mark-shipped")]
+    public async Task<IActionResult> MarkShipped(Guid id, [FromBody] MarkShippedRequest r)
+    {
+        var me = CurrentUserId();
+
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null) return NotFound("Order not found.");
+        if (order.SellerId != me) return Forbid();
+        if (order.Status != OrderStatus.Accepted) return BadRequest("Order must be Accepted.");
+
+        var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
+        if (s == null || s.Status == ShippingStatus.Draft)
+            return BadRequest("Buyer has not provided shipping details yet.");
+
+        if (!string.IsNullOrWhiteSpace(r.Carrier)) s.Carrier = r.Carrier.Trim();
+        if (!string.IsNullOrWhiteSpace(r.TrackingNumber)) s.TrackingNumber = r.TrackingNumber.Trim();
+
+        s.Status = ShippingStatus.Shipped;
+        s.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/shipping/mark-delivered")]
+    public async Task<IActionResult> MarkDelivered(Guid id)
+    {
+        var me = CurrentUserId();
+
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null) return NotFound("Order not found.");
+        if (order.BuyerId != me && order.SellerId != me) return Forbid();
+
+        var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
+        if (s == null) return BadRequest("Shipping not found.");
+        if (s.Status != ShippingStatus.Shipped) return BadRequest("Shipping must be Shipped.");
+
+        s.Status = ShippingStatus.Delivered;
+        s.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // ----------------------------
+    // Review (buyer rates seller)
+    // ----------------------------
+
+    [Authorize]
+    [HttpPost("{id:guid}/review")]
+    public async Task<IActionResult> CreateReview(Guid id, [FromBody] CreateReviewRequest r)
+    {
+        var me = CurrentUserId();
+
+        if (r is null) return BadRequest("Body required.");
+        if (r.Rating < 1 || r.Rating > 5) return BadRequest("Rating must be 1..5.");
+        if (string.IsNullOrWhiteSpace(r.Comment)) return BadRequest("Comment is required.");
+
+        var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (o is null) return NotFound("Order not found.");
+        if (o.BuyerId != me) return Forbid();
+
+        if (o.Status != OrderStatus.Rejected &&
+            o.Status != OrderStatus.Cancelled &&
+            o.Status != OrderStatus.Completed)
+            return BadRequest("Review allowed only for finished order (Rejected/Cancelled/Completed).");
+
+        var exists = await _db.Reviews.AnyAsync(x => x.OrderId == id && x.RaterId == me);
+        if (exists) return Conflict("Review already exists for this order.");
+
+        var review = new Review
         {
             Id = Guid.NewGuid(),
             OrderId = id,
-            CreatedAt = now
+            RaterId = me,
+            RateeId = o.SellerId,
+            Rating = r.Rating,
+            Comment = r.Comment.Trim(),
+            CreatedAt = DateTime.UtcNow
         };
-        _db.OrderShippings.Add(s);
+
+        _db.Reviews.Add(review);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            id = review.Id,
+            orderId = review.OrderId,
+            raterId = review.RaterId,
+            rateeId = review.RateeId,
+            rating = review.Rating,
+            comment = review.Comment,
+            createdAt = review.CreatedAt
+        });
     }
 
-    s.Method = method;
-    s.RecipientName = r.RecipientName.Trim();
-    s.RecipientPhone = r.RecipientPhone.Trim();
-    s.City = r.City.Trim();
-    s.AddressLine = (r.AddressLine ?? "").Trim();
-    s.Carrier = string.IsNullOrWhiteSpace(r.Carrier) ? null : r.Carrier.Trim();
-    s.Status = ShippingStatus.Ready; // ✅ buyer заповнив
-    s.UpdatedAt = now;
-
-    await _db.SaveChangesAsync();
-    return NoContent();
-}
-
-[Authorize]
-[HttpPost("{id:guid}/shipping/mark-shipped")]
-public async Task<IActionResult> MarkShipped(Guid id, [FromBody] MarkShippedRequest r)
+    [Authorize]
+[HttpGet("{id:guid}/review")]
+public async Task<IActionResult> GetMyReview(Guid id)
 {
     var me = CurrentUserId();
 
-    var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
-    if (order is null) return NotFound();
-    if (order.SellerId != me) return Forbid();
-    if (order.Status != OrderStatus.Accepted) return BadRequest("Order must be Accepted.");
+    var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+    if (o is null) return NotFound("Order not found.");
+    if (o.BuyerId != me && o.SellerId != me) return Forbid();
 
-    var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
-    if (s == null || s.Status == ShippingStatus.Draft)
-        return BadRequest("Buyer has not provided shipping details yet.");
+    var rev = await _db.Reviews.AsNoTracking()
+        .Where(x => x.OrderId == id && x.RaterId == me)
+        .Select(x => new
+        {
+            id = x.Id,
+            rating = x.Rating,
+            comment = x.Comment,
+            createdAt = x.CreatedAt,
+            rateeId = x.RateeId
+        })
+        .FirstOrDefaultAsync();
 
-    var now = DateTime.UtcNow;
-
-    if (!string.IsNullOrWhiteSpace(r.Carrier)) s.Carrier = r.Carrier.Trim();
-    if (!string.IsNullOrWhiteSpace(r.TrackingNumber)) s.TrackingNumber = r.TrackingNumber.Trim();
-
-    s.Status = ShippingStatus.Shipped;
-    s.UpdatedAt = now;
-
-    await _db.SaveChangesAsync();
-    return NoContent();
+    // ✅ ключ: JsonResult гарантує "null" в body, а не пустий body
+    return new JsonResult(rev);
 }
-
-[Authorize]
-[HttpPost("{id:guid}/shipping/mark-delivered")]
-public async Task<IActionResult> MarkDelivered(Guid id)
-{
-    var me = CurrentUserId();
-
-    var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id);
-    if (order is null) return NotFound();
-    if (order.BuyerId != me && order.SellerId != me) return Forbid();
-
-    var s = await _db.OrderShippings.FirstOrDefaultAsync(x => x.OrderId == id);
-    if (s == null) return BadRequest("Shipping not found.");
-    if (s.Status != ShippingStatus.Shipped) return BadRequest("Shipping must be Shipped.");
-
-    s.Status = ShippingStatus.Delivered;
-    s.UpdatedAt = DateTime.UtcNow;
-
-    await _db.SaveChangesAsync();
-    return NoContent();
-}
-
 }
 
 public class UpsertShippingRequest
@@ -401,12 +476,18 @@ public class UpsertShippingRequest
     public string RecipientName { get; set; } = "";
     public string RecipientPhone { get; set; } = "";
     public string City { get; set; } = "";
-    public string AddressLine { get; set; } = ""; // для Post/Courier. Для Meetup можна "Meet at ..."
-    public string? Carrier { get; set; }          // optional
+    public string AddressLine { get; set; } = "";
+    public string? Carrier { get; set; }
 }
 
 public class MarkShippedRequest
 {
     public string? Carrier { get; set; }
     public string? TrackingNumber { get; set; }
+}
+
+public class CreateReviewRequest
+{
+    public int Rating { get; set; }
+    public string Comment { get; set; } = "";
 }

@@ -13,6 +13,7 @@ export type AdsListItem = {
 };
 
 export type AdsListResponse = {
+  count: number;
   items: AdsListItem[];
   page: number;
   pageSize: number;

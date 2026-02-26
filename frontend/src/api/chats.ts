@@ -1,5 +1,8 @@
 import { http } from "./http";
 
+export const getChatById = getChat;
+export type MessageDto = ChatMessage;
+
 export type ChatListItem = {
   id: string;
   adId: string;

@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderShipping> OrderShippings => Set<OrderShipping>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<AdSubscription> AdSubscriptions => Set<AdSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -148,5 +150,43 @@ modelBuilder.Entity<OrderShipping>(b =>
 
     b.HasIndex(x => x.OrderId).IsUnique();
 });
+modelBuilder.Entity<Review>(b =>
+{
+    b.HasIndex(x => new { x.OrderId, x.RaterId }).IsUnique();
+    b.HasIndex(x => x.RateeId);
+
+    b.Property(x => x.Comment).HasMaxLength(2000);
+
+    b.HasOne(x => x.Order)
+        .WithMany()
+        .HasForeignKey(x => x.OrderId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    b.HasOne(x => x.Rater)
+        .WithMany()
+        .HasForeignKey(x => x.RaterId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    b.HasOne(x => x.Ratee)
+        .WithMany()
+        .HasForeignKey(x => x.RateeId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
+modelBuilder.Entity<AdSubscription>(b =>
+{
+    b.HasIndex(x => new { x.AdId, x.UserId }).IsUnique();
+    b.HasIndex(x => x.UserId);
+
+    b.HasOne(x => x.Ad)
+        .WithMany()
+        .HasForeignKey(x => x.AdId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    b.HasOne(x => x.User)
+        .WithMany()
+        .HasForeignKey(x => x.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
     }
 }
+

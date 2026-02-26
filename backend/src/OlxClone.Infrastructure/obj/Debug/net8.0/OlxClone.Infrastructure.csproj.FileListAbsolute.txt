@@ -11,6 +11,7 @@ C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.Infrastructure.AssemblyInfoInputs.cache
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.Infrastructure.AssemblyInfo.cs
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.Infrastructure.sourcelink.json
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.0A6E682B.Up2Date
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\OlxClone.Infrastructure.dll
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Infrastructure\obj\Debug\net8.0\refint\OlxClone.Infrastructure.dll

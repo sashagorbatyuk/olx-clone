@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getChatById, sendMessage, type ChatDetails, type MessageDto } from "../api/chats";
+import { getChat, sendMessage, type ChatDetails, type ChatMessage } from "../api/chats";
 import { getToken } from "../api/auth";
 
 export function ChatDetailsPage() {
@@ -27,7 +27,7 @@ export function ChatDetailsPage() {
     if (!id) return;
     setErr(null);
     try {
-      const data = await getChatById(id);
+      const data = await getChat(id);
       // messages можуть прийти null -> нормалізуємо
       data.messages = Array.isArray(data.messages) ? data.messages : [];
       setChat(data);
@@ -51,7 +51,7 @@ export function ChatDetailsPage() {
     try {
       const msg = await sendMessage(id, t);
       setText("");
-      setChat((prev) => (prev ? { ...prev, messages: [...prev.messages, msg as MessageDto] } : prev));
+      setChat((prev) => (prev ? { ...prev, messages: [...prev.messages, msg as ChatMessage] } : prev));
     } catch (e: any) {
       setErr(e?.response?.data ?? e?.message ?? "Send failed");
     } finally {

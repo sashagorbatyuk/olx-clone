@@ -106,6 +106,34 @@ namespace OlxClone.Infrastructure.Migrations
                     b.ToTable("AdPhotos");
                 });
 
+            modelBuilder.Entity("OlxClone.Domain.Entities.AdSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("AdId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("AdSubscriptions");
+                });
+
             modelBuilder.Entity("OlxClone.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -325,6 +353,44 @@ namespace OlxClone.Infrastructure.Migrations
                     b.ToTable("PasswordResetTokens");
                 });
 
+            modelBuilder.Entity("OlxClone.Domain.Entities.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RateeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RaterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RateeId");
+
+                    b.HasIndex("RaterId");
+
+                    b.HasIndex("OrderId", "RaterId")
+                        .IsUnique();
+
+                    b.ToTable("Reviews");
+                });
+
             modelBuilder.Entity("OlxClone.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -398,6 +464,25 @@ namespace OlxClone.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Ad");
+                });
+
+            modelBuilder.Entity("OlxClone.Domain.Entities.AdSubscription", b =>
+                {
+                    b.HasOne("OlxClone.Domain.Entities.Ad", "Ad")
+                        .WithMany()
+                        .HasForeignKey("AdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OlxClone.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ad");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OlxClone.Domain.Entities.Category", b =>
@@ -503,6 +588,33 @@ namespace OlxClone.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OlxClone.Domain.Entities.Review", b =>
+                {
+                    b.HasOne("OlxClone.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OlxClone.Domain.Entities.User", "Ratee")
+                        .WithMany()
+                        .HasForeignKey("RateeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OlxClone.Domain.Entities.User", "Rater")
+                        .WithMany()
+                        .HasForeignKey("RaterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Ratee");
+
+                    b.Navigation("Rater");
                 });
 
             modelBuilder.Entity("OlxClone.Domain.Entities.Ad", b =>

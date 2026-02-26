@@ -33,29 +33,70 @@ public class UsersController : ControllerBase
     }
 
     // GET /users/me
-    [Authorize]
-    [HttpGet("me")]
-    public async Task<IActionResult> Me()
+[Authorize]
+[HttpGet("me")]
+public async Task<IActionResult> Me()
+{
+    var me = CurrentUserId();
+
+    var u = await _db.Users
+        .AsNoTracking()
+        .Where(x => x.Id == me)
+        .Select(x => new
+        {
+            id = x.Id,
+            email = x.Email,
+            name = x.Name,
+            phone = x.Phone,
+            avatarUrl = x.AvatarUrl,
+            createdAt = x.CreatedAt,
+            about = x.About
+        })
+        .FirstOrDefaultAsync();
+
+    if (u is null) return NotFound();
+
+    // aggregates
+    var ratingAvg = await _db.Reviews
+        .AsNoTracking()
+        .Where(r => r.RateeId == me)
+        .Select(r => (double?)r.Rating)
+        .AverageAsync();
+
+    var ratingCount = await _db.Reviews
+        .AsNoTracking()
+        .CountAsync(r => r.RateeId == me);
+
+    var recentReviews = await _db.Reviews
+        .AsNoTracking()
+        .Where(r => r.RateeId == me)
+        .OrderByDescending(r => r.CreatedAt)
+        .Take(10)
+        .Select(r => new
+        {
+            id = r.Id,
+            rating = r.Rating,
+            comment = r.Comment,
+            createdAt = r.CreatedAt,
+            raterName = r.Rater.Name
+        })
+        .ToListAsync();
+
+    return Ok(new
     {
-        var me = CurrentUserId();
+        u.id,
+        u.email,
+        u.name,
+        u.phone,
+        u.avatarUrl,
+        u.createdAt,
+        u.about,
 
-        var u = await _db.Users.AsNoTracking()
-            .Where(x => x.Id == me)
-            .Select(x => new
-            {
-                id = x.Id,
-                email = x.Email,
-                name = x.Name,
-                phone = x.Phone,
-                avatarUrl = x.AvatarUrl,
-                createdAt = x.CreatedAt,
-                about = x.About
-            })
-            .FirstOrDefaultAsync();
-
-        if (u is null) return NotFound();
-        return Ok(u);
-    }
+        ratingAvg,
+        ratingCount,
+        recentReviews
+    });
+}
 
     // PUT /users/me
     [Authorize]
@@ -129,38 +170,76 @@ Directory.CreateDirectory(avatarsDir);
 
     // GET /users/{id} (only if chatted with me)
     [Authorize]
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetUser(Guid id)
+[HttpGet("{id:guid}")]
+public async Task<IActionResult> GetPublicUser(Guid id)
+{
+    var me = CurrentUserId();
+
+    // 1) дозволяємо дивитись профіль тільки якщо є чат (як ти хотів)
+    var allowed = await _db.Conversations.AsNoTracking()
+        .AnyAsync(c =>
+            (c.BuyerId == me && c.SellerId == id) ||
+            (c.SellerId == me && c.BuyerId == id));
+
+    if (!allowed) return Forbid();
+
+    // 2) сам профіль
+    var u = await _db.Users.AsNoTracking()
+        .Where(x => x.Id == id)
+        .Select(x => new
+        {
+            id = x.Id,
+            name = x.Name,
+            phone = x.Phone,
+            about = x.About,
+            avatarUrl = x.AvatarUrl,
+            createdAt = x.CreatedAt
+        })
+        .FirstOrDefaultAsync();
+
+    if (u is null) return NotFound("User not found.");
+
+    // 3) rating summary
+    var summary = await _db.Reviews.AsNoTracking()
+        .Where(r => r.RateeId == id) // seller
+        .GroupBy(r => r.RateeId)
+        .Select(g => new
+        {
+            avg = g.Average(x => x.Rating),
+            count = g.Count()
+        })
+        .FirstOrDefaultAsync();
+
+    // 4) recent reviews
+    var recent = await _db.Reviews.AsNoTracking()
+        .Where(r => r.RateeId == id)
+        .OrderByDescending(r => r.CreatedAt)
+        .Take(10)
+        .Select(r => new
+        {
+            id = r.Id,
+            rating = r.Rating,
+            comment = r.Comment,
+            createdAt = r.CreatedAt,
+            raterName = r.Rater.Name
+        })
+        .ToListAsync();
+
+    // ✅ 5) один-єдиний return
+    return Ok(new
     {
-        var me = CurrentUserId();
+        id = u.id,
+        name = u.name,
+        phone = u.phone,
+        about = u.about,
+        avatarUrl = u.avatarUrl,
+        createdAt = u.createdAt,
 
-        if (id == me)
-            return BadRequest("Use /users/me for own profile.");
-
-        var hasConversation = await _db.Conversations.AsNoTracking()
-            .AnyAsync(c =>
-                (c.BuyerId == me && c.SellerId == id) ||
-                (c.SellerId == me && c.BuyerId == id));
-
-        if (!hasConversation)
-            return Forbid();
-
-        var u = await _db.Users.AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new
-            {
-                id = x.Id,
-                name = x.Name,
-                phone = x.Phone,
-                avatarUrl = x.AvatarUrl,
-                createdAt = x.CreatedAt,
-                about = x.About
-            })
-            .FirstOrDefaultAsync();
-
-        if (u is null) return NotFound();
-        return Ok(u);
-    }
+        ratingAvg = summary == null ? (double?)null : summary.avg,
+        ratingCount = summary == null ? 0 : summary.count,
+        recentReviews = recent
+    });
+}
 
     [Authorize]
     [HttpGet("me/ads")]
@@ -216,4 +295,6 @@ Directory.CreateDirectory(avatarsDir);
         public string? Phone { get; set; }
         public string? About { get; set; }
     }
+
+    // UsersController.cs
 }

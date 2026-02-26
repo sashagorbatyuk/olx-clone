@@ -12,9 +12,19 @@ export type MeDto = {
   email: string;
   name: string;
   phone: string | null;
+  about: string | null;
   avatarUrl: string | null;
-  about: string | null; // ✅
   createdAt: string;
+
+  ratingAvg: number | null;
+  ratingCount: number;
+  recentReviews: {
+    id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    raterName: string;
+  }[];
 };
 
 // GET /users/me

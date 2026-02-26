@@ -339,4 +339,58 @@ if (string.IsNullOrWhiteSpace(webRoot))
         await _db.SaveChangesAsync();
         return NoContent();
     }
+    // GET /ads/{id}/subscription
+[Authorize]
+[HttpGet("{id:guid}/subscription")]
+public async Task<IActionResult> GetSubscriptionStatus(Guid id)
+{
+    var me = CurrentUserId();
+
+    var exists = await _db.AdSubscriptions.AsNoTracking()
+        .AnyAsync(x => x.AdId == id && x.UserId == me);
+
+    return Ok(new { subscribed = exists });
+}
+
+// POST /ads/{id}/subscribe
+[Authorize]
+[HttpPost("{id:guid}/subscribe")]
+public async Task<IActionResult> Subscribe(Guid id)
+{
+    var me = CurrentUserId();
+
+    var ad = await _db.Ads.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
+    if (ad is null) return NotFound("Ad not found.");
+    if (ad.UserId == me) return BadRequest("You cannot subscribe to your own ad.");
+
+    var exists = await _db.AdSubscriptions.AnyAsync(x => x.AdId == id && x.UserId == me);
+    if (exists) return NoContent();
+
+    _db.AdSubscriptions.Add(new Domain.Entities.AdSubscription
+    {
+        Id = Guid.NewGuid(),
+        AdId = id,
+        UserId = me,
+        CreatedAt = DateTime.UtcNow,
+        LastSeenAt = DateTime.UtcNow
+    });
+
+    await _db.SaveChangesAsync();
+    return NoContent();
+}
+
+// DELETE /ads/{id}/subscribe
+[Authorize]
+[HttpDelete("{id:guid}/subscribe")]
+public async Task<IActionResult> Unsubscribe(Guid id)
+{
+    var me = CurrentUserId();
+
+    var s = await _db.AdSubscriptions.FirstOrDefaultAsync(x => x.AdId == id && x.UserId == me);
+    if (s is null) return NoContent();
+
+    _db.AdSubscriptions.Remove(s);
+    await _db.SaveChangesAsync();
+    return NoContent();
+}
 }

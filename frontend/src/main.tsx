@@ -24,6 +24,7 @@ import { UserProfilePage } from "./pages/UserProfilePage";
 import { MyOrdersPage } from "./pages/MyOrdersPage";
 import { OrderPage } from "./pages/OrderPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
+import { FollowedAdsPage } from "./pages/FollowedAdsPage";
 
 // ✅ seller pages (2 різні файли)
 import { SellerOrdersPage } from "./pages/SellerOrdersPage";
@@ -64,6 +65,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* seller orders */}
             <Route path="/seller/orders" element={<SellerOrdersPage />} />
             <Route path="/seller/orders/:id" element={<SellerOrderPage />} />
+
+            <Route path="/followed" element={<FollowedAdsPage />} />
           </Route>
         </Route>
       </Routes>

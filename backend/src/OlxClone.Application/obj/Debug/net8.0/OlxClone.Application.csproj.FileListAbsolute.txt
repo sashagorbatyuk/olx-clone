@@ -8,6 +8,7 @@ C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\ne
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.AssemblyInfoInputs.cache
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.AssemblyInfo.cs
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.csproj.CoreCompileInputs.cache
+C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.sourcelink.json
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.4822FA71.Up2Date
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\OlxClone.Application.dll
 C:\Users\Vasya\Documents\olx-clone\backend\src\OlxClone.Application\obj\Debug\net8.0\refint\OlxClone.Application.dll

@@ -1,5 +1,5 @@
 import { http } from "../../api/http";
-import type { AdsListResponse, AdDetails, UpsertAdRequest, CreateAdResponse } from "./types";
+import type { AdsListResponse, UpsertAdRequest, CreateAdResponse } from "./types";
 
 
 export async function getAds(params?: {
