@@ -107,12 +107,16 @@ using (var scope = app.Services.CreateScope())
 {
     try
     {
-        var db = scope.ServiceProvider.GetRequiredService<OlxClone.Infrastructure.AppDbContext>();
-        OlxClone.Infrastructure.Seed.DbSeeder.SeedCategories(db);
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // опційно (але корисно)
+        await db.Database.MigrateAsync();
+
+        await OlxClone.Infrastructure.Seed.DbSeeder.SeedCategories(db);
     }
     catch (Exception ex)
     {
-        Console.WriteLine("Seed failed: " + ex.Message);
+        Console.WriteLine("Seed failed: " + ex);
     }
 }
 

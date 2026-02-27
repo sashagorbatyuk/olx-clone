@@ -1,9 +1,11 @@
 import { http } from "./http";
 
 export type Category = {
+  iconUrl: any;
   id: string;
   name: string;
   parentId?: string | null;
+  iconUrl?: string | null;
 };
 
 export async function getCategories() {

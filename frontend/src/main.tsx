@@ -31,6 +31,9 @@ import { SellerOrdersPage } from "./pages/SellerOrdersPage";
 import { SellerOrderPage } from "./pages/SellerOrderPage";
 
 import "./styles.css";
+import { AdsExplorePage } from "./pages/AdsExplorePage";
+
+
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -39,6 +42,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/ads/:id" element={<AdDetailsPage />} />
+          <Route path="/ads/create" element={<CreateAdPage />} />
+          <Route path="/my-ads" element={<MyAdsPage />} />
+          <Route path="/ads" element={<AdsExplorePage />} />
+          
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -65,6 +72,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* seller orders */}
             <Route path="/seller/orders" element={<SellerOrdersPage />} />
             <Route path="/seller/orders/:id" element={<SellerOrderPage />} />
+            
 
             <Route path="/followed" element={<FollowedAdsPage />} />
           </Route>

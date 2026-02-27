@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OlxClone.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7ad6460d35d177f50983a1515d2662be71148358")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+442229c88499ca4744fb9b0ed352e02ccbc62bbe")]
 [assembly: System.Reflection.AssemblyProductAttribute("OlxClone.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OlxClone.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

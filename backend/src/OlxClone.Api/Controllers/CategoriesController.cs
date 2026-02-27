@@ -17,7 +17,7 @@ public class CategoriesController : ControllerBase
         var items = await _db.Categories
             .AsNoTracking()
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.ParentId })
+            .Select(x => new { x.Id, x.Name, x.ParentId, x.IconUrl })
             .ToListAsync();
 
         return Ok(items);
